@@ -1,0 +1,65 @@
+from qiskit import *
+from qiskit.tools.jupyter import *
+from numpy import random
+----------------------------------
+def bb84(length):
+    # Create a quantum circuit with one quantum register and one classical register
+    qc = QuantumCircuit(length, length)
+
+    # Encode the bits randomly
+    for i in range(length):
+        bit = random.randint(2)
+        if bit == 0:
+            qc.reset(i)
+        else:
+            qc.h(i)
+
+    # Apply the Hadamard gate to half of the qubits
+    for i in range(length//2):
+        qc.h(i)
+
+    # Choose a random basis for each qubit
+    bases = [random.randint(2) for i in range(length)]
+
+    # Measure the qubits in the chosen basis
+    for i in range(length):
+        if bases[i] == 0:
+            qc.measure(i, i)
+        else:
+            qc.h(i)
+            qc.measure(i, i)
+
+    # Run the quantum circuit on a simulator
+    simulator = Aer.get_backend('qasm_simulator')
+    result = execute(qc, simulator, shots=1).result()
+    counts = result.get_counts(qc)
+
+    # Extract the qubits sent by Alice and measured by Bob
+    alice_qubits = []
+    bob_qubits = []
+    for key in counts.keys():
+        bits = [int(bit) for bit in key]
+        if bases[bits[0]] == bases[bits[1]]:
+            alice_qubits.append(bits[0])
+            bob_qubits.append(bits[1])
+
+    return alice_qubits, bob_qubits
+-----------------------------------
+def check(alice_qubits, bob_qubits, sample_size):
+    # Choose a random sample of qubits
+    sample = random.choice(len(alice_qubits), sample_size, replace=False)
+
+    # Compare the qubits
+    for i in sample:
+        if alice_qubits[i] != bob_qubits[i]:
+            return False
+    return True
+-----------------------------------
+# Generate a quantum key of length 10
+alice_qubits, bob_qubits = bb84(10)
+
+# Check for interference using a sample of 5 qubits
+if check(alice_qubits, bob_qubits, 5):
+    print("No interference detected, key is secure")
+else:
+    print("Interference detected, key is compromised")
